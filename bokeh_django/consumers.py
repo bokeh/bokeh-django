@@ -1,21 +1,21 @@
-#-----------------------------------------------------------------------------
+# -----------------------------------------------------------------------------
 # Copyright (c) 2012 - 2022, Anaconda, Inc., and Bokeh Contributors.
 # All rights reserved.
 #
 # The full license is in the file LICENSE.txt, distributed with this software.
-#-----------------------------------------------------------------------------
+# -----------------------------------------------------------------------------
 
-#-----------------------------------------------------------------------------
+# -----------------------------------------------------------------------------
 # Boilerplate
-#-----------------------------------------------------------------------------
+# -----------------------------------------------------------------------------
 from __future__ import annotations
 
 import logging # isort:skip
 log = logging.getLogger(__name__)
 
-#-----------------------------------------------------------------------------
+# -----------------------------------------------------------------------------
 # Imports
-#-----------------------------------------------------------------------------
+# -----------------------------------------------------------------------------
 
 # Standard library imports
 import asyncio
@@ -56,9 +56,9 @@ from bokeh.util.token import (
     get_token_payload,
 )
 
-#-----------------------------------------------------------------------------
+# -----------------------------------------------------------------------------
 # Globals and constants
-#-----------------------------------------------------------------------------
+# -----------------------------------------------------------------------------
 
 __all__ = (
     'DocConsumer',
@@ -66,9 +66,10 @@ __all__ = (
     'WSConsumer',
 )
 
-#-----------------------------------------------------------------------------
+# -----------------------------------------------------------------------------
 # General API
-#-----------------------------------------------------------------------------
+# -----------------------------------------------------------------------------
+
 
 class ConsumerHelper(AsyncConsumer):
 
@@ -95,26 +96,33 @@ class ConsumerHelper(AsyncConsumer):
             return Resources(mode="server", root_url=root_url, path_versioner=StaticHandler.append_version)
         return Resources(mode=mode)
 
+
 class SessionConsumer(AsyncHttpConsumer, ConsumerHelper):
 
-    application_context: ApplicationContext
+    _application_context: ApplicationContext
 
-    def __init__(self, scope: Dict[str, Any]) -> None:
-        super().__init__(scope)
+    def __init__(self, *args: Any, **kwargs: Any) -> None:
+        super().__init__(*args, **kwargs)
+        self._application_context = kwargs.get('app_context')
 
-        kwargs = self.scope["url_route"]["kwargs"]
-        self.application_context = kwargs["app_context"]
+    @property
+    def application_context(self) -> ApplicationContext:
+        # backwards compatibility
+        if self._application_context is None:
+            self._application_context = self.scope["url_route"]["kwargs"]["app_context"]
 
         # XXX: accessing asyncio's IOLoop directly doesn't work
-        if self.application_context.io_loop is None:
-            self.application_context._loop = IOLoop.current()
+        if self._application_context.io_loop is None:
+            self._application_context._loop = IOLoop.current()
+        return self._application_context
 
     async def _get_session(self) -> ServerSession:
         session_id = self.arguments.get('bokeh-session-id',
                                         generate_session_id(secret_key=None, signed=False))
-        payload = {'headers': {k.decode('utf-8'): v.decode('utf-8')
-                               for k, v in self.request.headers},
-                   'cookies': dict(self.request.cookies)}
+        payload = dict(
+            headers={k.decode('utf-8'): v.decode('utf-8') for k, v in self.request.headers},
+            cookies=dict(self.request.cookies),
+        )
         token = generate_jwt_token(session_id,
                                    secret_key=None,
                                    signed=False,
@@ -122,6 +130,7 @@ class SessionConsumer(AsyncHttpConsumer, ConsumerHelper):
                                    extra_payload=payload)
         session = await self.application_context.create_session_if_needed(session_id, self.request, token)
         return session
+
 
 class AutoloadJsConsumer(SessionConsumer):
 
@@ -143,6 +152,8 @@ class AutoloadJsConsumer(SessionConsumer):
 
         resources_param = self.get_argument("resources", "default")
         resources = self.resources(server_url) if resources_param != "none" else None
+
+        resources = self.resources(server_url)
         bundle = bundle_for_objs_and_resources(None, resources)
 
         render_items = [RenderItem(token=session.token, elementid=element_id, use_for_title=False)]
@@ -157,34 +168,42 @@ class AutoloadJsConsumer(SessionConsumer):
         ]
         await self.send_response(200, js.encode(), headers=headers)
 
+
 class DocConsumer(SessionConsumer):
 
     async def handle(self, body: bytes) -> None:
         session = await self._get_session()
-        page = server_html_page_for_session(session,
-                                            resources=self.resources(),
-                                            title=session.document.title,
-                                            template=session.document.template,
-                                            template_variables=session.document.template_variables)
+        page = server_html_page_for_session(
+            session,
+            resources=self.resources(),
+            title=session.document.title,
+            template=session.document.template,
+            template_variables=session.document.template_variables
+        )
         await self.send_response(200, page.encode(), headers=[(b"Content-Type", b"text/html")])
+
 
 class WSConsumer(AsyncWebsocketConsumer, ConsumerHelper):
 
     _clients: Set[ServerConnection]
 
-    application_context: ApplicationContext
+    _application_context: ApplicationContext | None
 
-    def __init__(self, scope: Dict[str, Any]) -> None:
-        super().__init__(scope)
-
-        kwargs = self.scope['url_route']["kwargs"]
-        self.application_context = kwargs["app_context"]
-
-        if self.application_context.io_loop is None:
-            raise RuntimeError("io_loop should already been set")
-
+    def __init__(self, *args: Any, **kwargs: Any) -> None:
+        super().__init__(*args, **kwargs)
+        self._application_context = kwargs.get('app_context')
         self._clients = set()
         self.lock = locks.Lock()
+
+    @property
+    def application_context(self) -> ApplicationContext:
+        # backward compatiblity
+        if self._application_context is None:
+            self._application_context = self.scope["url_route"]["kwargs"]["app_context"]
+
+        if self._application_context.io_loop is None:
+            raise RuntimeError("io_loop should already been set")
+        return self._application_context
 
     async def connect(self):
         log.info('WebSocket connection opened')
@@ -259,6 +278,7 @@ class WSConsumer(AsyncWebsocketConsumer, ConsumerHelper):
             log.info("ServerConnection created")
 
         except Exception as e:
+            breakpoint()
             log.error("Could not create new server session, reason: %s", e)
             self.close()
             raise e
@@ -285,33 +305,29 @@ class WSConsumer(AsyncWebsocketConsumer, ConsumerHelper):
                     sent += len(header) + len(payload)
         except Exception:  # Tornado 4.x may raise StreamClosedError
             # on_close() is / will be called anyway
-            log.warn("Failed sending message as connection was closed")
+            log.warning("Failed sending message as connection was closed")
         return sent
+
+    async def send_message(self, message: Message) -> int:
+        return await self._send_bokeh_message(message)
 
     def _new_connection(self,
             protocol: Protocol,
             socket: AsyncConsumer,
             application_context: ApplicationContext,
             session: ServerSession) -> ServerConnection:
-        connection = AsyncServerConnection(protocol, socket, application_context, session)
+        connection = ServerConnection(protocol, socket, application_context, session)
         self._clients.add(connection)
         return connection
 
-#-----------------------------------------------------------------------------
+# -----------------------------------------------------------------------------
 # Dev API
-#-----------------------------------------------------------------------------
+# -----------------------------------------------------------------------------
 
-#-----------------------------------------------------------------------------
+# -----------------------------------------------------------------------------
 # Private API
-#-----------------------------------------------------------------------------
+# -----------------------------------------------------------------------------
 
-# TODO: remove this when coroutines are dropped
-class AsyncServerConnection(ServerConnection):
-
-    async def send_patch_document(self, event):
-        """ Sends a PATCH-DOC message, returning a Future that's completed when it's written out. """
-        msg = self.protocol.create('PATCH-DOC', [event])
-        await self._socket._send_bokeh_message(msg)
 
 class AttrDict(dict):
     """ Provide a dict subclass that supports access by named attributes.
@@ -321,6 +337,6 @@ class AttrDict(dict):
     def __getattr__(self, key):
         return self[key]
 
-#-----------------------------------------------------------------------------
+# -----------------------------------------------------------------------------
 # Code
-#-----------------------------------------------------------------------------
+# -----------------------------------------------------------------------------

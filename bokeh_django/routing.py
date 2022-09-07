@@ -1,21 +1,21 @@
-#-----------------------------------------------------------------------------
+# -----------------------------------------------------------------------------
 # Copyright (c) 2012 - 2022, Anaconda, Inc., and Bokeh Contributors.
 # All rights reserved.
 #
 # The full license is in the file LICENSE.txt, distributed with this software.
-#-----------------------------------------------------------------------------
+# -----------------------------------------------------------------------------
 
-#-----------------------------------------------------------------------------
+# -----------------------------------------------------------------------------
 # Boilerplate
-#-----------------------------------------------------------------------------
+# -----------------------------------------------------------------------------
 from __future__ import annotations
 
 import logging # isort:skip
 log = logging.getLogger(__name__)
 
-#-----------------------------------------------------------------------------
+# -----------------------------------------------------------------------------
 # Imports
-#-----------------------------------------------------------------------------
+# -----------------------------------------------------------------------------
 
 # Standard library imports
 import re
@@ -23,8 +23,8 @@ from pathlib import Path
 from typing import Callable, List, Union
 
 # External imports
-from channels.http import AsgiHandler
-from django.conf.urls import url
+from django.core.asgi import get_asgi_application
+from django.urls import re_path
 from django.urls.resolvers import URLPattern
 
 # Bokeh imports
@@ -37,9 +37,9 @@ from bokeh.server.contexts import ApplicationContext
 # Bokeh imports
 from .consumers import AutoloadJsConsumer, DocConsumer, WSConsumer
 
-#-----------------------------------------------------------------------------
+# -----------------------------------------------------------------------------
 # Globals and constants
-#-----------------------------------------------------------------------------
+# -----------------------------------------------------------------------------
 
 __all__ = (
     'RoutingConfiguration',
@@ -47,9 +47,10 @@ __all__ = (
 
 ApplicationLike = Union[Application, Callable, Path]
 
-#-----------------------------------------------------------------------------
+# -----------------------------------------------------------------------------
 # General API
-#-----------------------------------------------------------------------------
+# -----------------------------------------------------------------------------
+
 
 class Routing:
     url: str
@@ -78,11 +79,14 @@ class Routing:
             app.add(DocumentLifecycleHandler())
         return app
 
+
 def document(url: str, app: ApplicationLike) -> Routing:
     return Routing(url, app, document=True)
 
+
 def autoload(url: str, app: ApplicationLike) -> Routing:
     return Routing(url, app, autoload=True)
+
 
 def directory(*apps_paths: Path) -> List[Routing]:
     paths: List[Path] = []
@@ -105,7 +109,7 @@ class RoutingConfiguration:
             self._add_new_routing(routing)
 
     def get_http_urlpatterns(self) -> List[URLPattern]:
-        return self._http_urlpatterns + [url(r"", AsgiHandler)]
+        return self._http_urlpatterns + [re_path(r"", get_asgi_application())]
 
     def get_websocket_urlpatterns(self) -> List[URLPattern]:
         return self._websocket_urlpatterns
@@ -120,23 +124,24 @@ class RoutingConfiguration:
             return r"^{}$".format(join(re.escape(routing.url)) + suffix)
 
         if routing.document:
-            self._http_urlpatterns.append(url(urlpattern(), DocConsumer, kwargs=kwargs))
+            self._http_urlpatterns.append(re_path(urlpattern(), DocConsumer.as_asgi(), kwargs=kwargs))
         if routing.autoload:
-            self._http_urlpatterns.append(url(urlpattern("/autoload.js"), AutoloadJsConsumer, kwargs=kwargs))
+            self._http_urlpatterns.append(re_path(urlpattern("/autoload.js"), AutoloadJsConsumer.as_asgi(), kwargs=kwargs))
 
-        self._websocket_urlpatterns.append(url(urlpattern("/ws"), WSConsumer, kwargs=kwargs))
+        self._websocket_urlpatterns.append(re_path(urlpattern("/ws"), WSConsumer.as_asgi(), kwargs=kwargs))
 
-#-----------------------------------------------------------------------------
+# -----------------------------------------------------------------------------
 # Dev API
-#-----------------------------------------------------------------------------
+# -----------------------------------------------------------------------------
 
-#-----------------------------------------------------------------------------
+# -----------------------------------------------------------------------------
 # Private API
-#-----------------------------------------------------------------------------
+# -----------------------------------------------------------------------------
+
 
 def is_bokeh_app(entry: Path) -> bool:
     return (entry.is_dir() or entry.name.endswith(('.py', '.ipynb'))) and not entry.name.startswith((".", "_"))
 
-#-----------------------------------------------------------------------------
+# -----------------------------------------------------------------------------
 # Code
-#-----------------------------------------------------------------------------
+# -----------------------------------------------------------------------------
