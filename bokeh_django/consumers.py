@@ -278,7 +278,6 @@ class WSConsumer(AsyncWebsocketConsumer, ConsumerHelper):
             log.info("ServerConnection created")
 
         except Exception as e:
-            breakpoint()
             log.error("Could not create new server session, reason: %s", e)
             self.close()
             raise e
