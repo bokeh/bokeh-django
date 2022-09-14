@@ -1,6 +1,6 @@
 from setuptools import setup, find_namespace_packages
 
-dependencies = []
+dependencies = ['bokeh', 'channels']
 
 setup(
     name='bokeh-django',

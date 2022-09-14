@@ -1,0 +1,37 @@
+{% set sdata = load_setup_py_data() %}
+
+package:
+  name: bokeh-django
+  version: {{ sdata['version'] }}
+
+source:
+  path: ..
+
+build:
+  noarch: python
+  number: 0
+  script: python setup.py install --single-version-externally-managed --record=record.txt
+
+
+requirements:
+  build:
+    - python=3.7*
+    - setuptools
+  run:
+    - python
+
+    # dependencies are defined in setup.py
+    {% for dep in sdata['install_requires'] %}
+    - {{ dep.lower() }}
+    {% endfor %}
+
+
+test:
+  imports:
+    - bokeh_django
+    - bokeh_django.consumers
+
+about:
+  home: {{ sdata['url'] }}
+  summary: {{ sdata['description'] }}
+  license: {{ sdata['license'] }}
