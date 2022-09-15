@@ -153,8 +153,8 @@ class AutoloadJsConsumer(SessionConsumer):
         resources_param = self.get_argument("resources", "default")
         resources = self.resources(server_url) if resources_param != "none" else None
 
-        resources = self.resources(server_url)
-        bundle = bundle_for_objs_and_resources(None, resources)
+        root_url = urljoin(absolute_url, self._prefix) if absolute_url else self._prefix
+        bundle = bundle_for_objs_and_resources(None, resources)  # , root_url=root_url) TODO add root_url argument in bokeh
 
         render_items = [RenderItem(token=session.token, elementid=element_id, use_for_title=False)]
         bundle.add(Script(script_for_render_items({}, render_items, app_path=app_path, absolute_url=absolute_url)))
