@@ -154,7 +154,10 @@ class AutoloadJsConsumer(SessionConsumer):
         resources = self.resources(server_url) if resources_param != "none" else None
 
         root_url = urljoin(absolute_url, self._prefix) if absolute_url else self._prefix
-        bundle = bundle_for_objs_and_resources(None, resources)  # , root_url=root_url) TODO add root_url argument in bokeh
+        try:
+            bundle = bundle_for_objs_and_resources(None, resources, root_url=root_url)
+        except TypeError:
+            bundle = bundle_for_objs_and_resources(None, resources)
 
         render_items = [RenderItem(token=session.token, elementid=element_id, use_for_title=False)]
         bundle.add(Script(script_for_render_items({}, render_items, app_path=app_path, absolute_url=absolute_url)))
@@ -298,12 +301,21 @@ class WSConsumer(AsyncWebsocketConsumer, ConsumerHelper):
                 await self.send(text_data=message.content_json)
                 sent += len(message.content_json)
 
-                for header, payload in message._buffers:
+                for buffer in message._buffers:
+                    if isinstance(buffer, tuple):
+                        header, payload = buffer
+                    else:
+                        # buffer is bokeh.core.serialization.Buffer (Bokeh 3)
+                        header = {'id': buffer.id}
+                        payload = buffer.data.tobytes()
+
                     await self.send(text_data=json.dumps(header))
                     await self.send(bytes_data=payload)
                     sent += len(header) + len(payload)
-        except Exception:  # Tornado 4.x may raise StreamClosedError
+
+        except Exception as e:  # Tornado 4.x may raise StreamClosedError
             # on_close() is / will be called anyway
+            log.exception(e)
             log.warning("Failed sending message as connection was closed")
         return sent
 
