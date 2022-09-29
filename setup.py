@@ -4,7 +4,7 @@ dependencies = ['bokeh', 'channels']
 
 setup(
     name='bokeh-django',
-    version='0.0.0',
+    version='0.1.0a2',
     description='',
     long_description='',
     keywords='',

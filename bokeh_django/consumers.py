@@ -128,7 +128,10 @@ class SessionConsumer(AsyncHttpConsumer, ConsumerHelper):
                                    signed=False,
                                    expiration=300,
                                    extra_payload=payload)
-        session = await self.application_context.create_session_if_needed(session_id, self.request, token)
+        try:
+            session = await self.application_context.create_session_if_needed(session_id, self.request, token)
+        except Exception as e:
+            log.exception(e)
         return session
 
 

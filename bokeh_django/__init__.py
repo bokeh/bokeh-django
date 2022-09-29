@@ -3,6 +3,7 @@ from bokeh.util.dependencies import import_required
 
 # Bokeh imports
 from .apps import DjangoBokehConfig
+from .consumers import AutoloadJsConsumer, WSConsumer
 from .routing import autoload, directory, document
 from .static import static_extensions
 
