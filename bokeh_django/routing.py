@@ -10,7 +10,7 @@
 # -----------------------------------------------------------------------------
 from __future__ import annotations
 
-import logging # isort:skip
+import logging  # isort:skip
 log = logging.getLogger(__name__)
 
 # -----------------------------------------------------------------------------
@@ -18,7 +18,6 @@ log = logging.getLogger(__name__)
 # -----------------------------------------------------------------------------
 
 # Standard library imports
-import re
 from pathlib import Path
 from typing import Callable, List, Union
 import weakref
@@ -192,18 +191,15 @@ class RoutingConfiguration:
     def _add_new_routing(self, routing: Routing) -> None:
         kwargs = dict(app_context=routing.app_context)
 
-        def join(*components):
-            return "/".join([component.strip("/") for component in components if component])
-
         def urlpattern(suffix=""):
-            return r"^{}$".format(join(re.escape(routing.url)) + suffix)
+            return f"^{routing.url.strip('^$/')}{suffix}$"
 
         if routing.document:
-            self._http_urlpatterns.append(re_path(urlpattern(), DocConsumer.as_asgi(), kwargs=kwargs))
+            self._http_urlpatterns.append(re_path(urlpattern(), DocConsumer.as_asgi(**kwargs)))
         if routing.autoload:
-            self._http_urlpatterns.append(re_path(urlpattern("/autoload.js"), AutoloadJsConsumer.as_asgi(), kwargs=kwargs))
+            self._http_urlpatterns.append(re_path(urlpattern("/autoload.js"), AutoloadJsConsumer.as_asgi(**kwargs)))
 
-        self._websocket_urlpatterns.append(re_path(urlpattern("/ws"), WSConsumer.as_asgi(), kwargs=kwargs))
+        self._websocket_urlpatterns.append(re_path(urlpattern("/ws"), WSConsumer.as_asgi(**kwargs)))
 
 # -----------------------------------------------------------------------------
 # Dev API

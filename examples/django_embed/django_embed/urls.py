@@ -29,6 +29,7 @@ urlpatterns = [
     path("sea-surface-temp", views.sea_surface),
     path("my-sea-surface", views.sea_surface_custom_uri),
     path("shapes", views.shapes),
+    path("shapes/<str:arg1>/<str:arg2>", views.shapes_with_args),
     # *static_extensions(),
     # *staticfiles_urlpatterns(),
 ]
@@ -44,5 +45,6 @@ bokeh_apps = [
     document("shape_viewer", views.shape_viewer_handler),
     autoload("sea-surface-temp", views.sea_surface_handler),
     autoload("sea_surface_custom_uri", views.sea_surface_handler),
-    autoload('shapes', views.shape_viewer_handler),
+    autoload("shapes", views.shape_viewer_handler),
+    autoload("shapes/(?P<arg1>[\w_\-]+)/(?P<arg2>[\w_\-]+)", views.shape_viewer_handler_with_args),
 ]

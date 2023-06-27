@@ -20,6 +20,7 @@ class Shape(param.Parameterized):
     def view(self):
         return self.figure
 
+
 class Circle(Shape):
 
     n = param.Integer(default=100, precedence=-1)
@@ -37,6 +38,7 @@ class Circle(Shape):
         xs, ys = self._get_coords()
         self.renderer.data_source.data.update({'x': xs, 'y': ys})
 
+
 class NGon(Circle):
 
     n = param.Integer(default=3, bounds=(3, 10), precedence=1)
@@ -46,7 +48,9 @@ class NGon(Circle):
         xs, ys = self._get_coords()
         self.renderer.data_source.data.update({'x': xs, 'y': ys})
 
+
 shapes = [NGon(), Circle()]
+
 
 class ShapeViewer(param.Parameterized):
 
@@ -78,4 +82,8 @@ class ShapeViewer(param.Parameterized):
 
 
 def shape_viewer():
-    return ShapeViewer().panel()
+    shapes = [NGon(), Circle()]
+    viewer = ShapeViewer()
+    viewer.param.shape.objects = shapes
+    viewer.shape = shapes[0]
+    return viewer.panel()
