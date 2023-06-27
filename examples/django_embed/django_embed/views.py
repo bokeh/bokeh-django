@@ -1,5 +1,6 @@
 from os.path import join
 from typing import Any
+from bokeh_django import with_request, with_url_args
 
 from django.conf import settings
 from django.http import HttpRequest, HttpResponse
@@ -12,6 +13,7 @@ from bokeh.models import ColumnDataSource, Slider
 from bokeh.plotting import figure
 from bokeh.sampledata.sea_surface_temperature import sea_surface_temperature
 from bokeh.themes import Theme
+import panel as pn
 
 from .shape_viewer import shape_viewer
 
@@ -25,6 +27,15 @@ def index(request: HttpRequest) -> HttpResponse:
 def shape_viewer_handler(doc: Document) -> None:
     panel = shape_viewer()
     panel.server_doc(doc)
+
+
+@with_url_args
+def shape_viewer_handler_with_args(doc, arg1, arg2):
+    viewer = shape_viewer()
+    pn.Column(
+        viewer,
+        pn.pane.Markdown(f'## This app has URL Args: {arg1} and {arg2}')
+    ).server_doc(doc)
 
 
 def sea_surface_handler(doc: Document) -> None:
@@ -49,12 +60,6 @@ def sea_surface_handler(doc: Document) -> None:
     doc.add_root(column(slider, plot))
 
 
-def with_request(f):
-    def wrapper(doc):
-        return f(doc, doc.session_context.request)
-    return wrapper
-
-
 @with_request
 def sea_surface_handler_with_template(doc: Document, request: Any) -> None:
     sea_surface_handler(doc)
@@ -76,15 +81,20 @@ def sea_surface_handler_with_template(doc: Document, request: Any) -> None:
 
 
 def sea_surface(request: HttpRequest) -> HttpResponse:
-    script = server_document(request.build_absolute_uri())
+    script = server_document(request.get_full_path())
     return render(request, "embed.html", dict(script=script))
 
 
 def sea_surface_custom_uri(request: HttpRequest) -> HttpResponse:
-    script = server_document(request._current_scheme_host + "/sea_surface_custom_uri")
+    script = server_document("/sea_surface_custom_uri")
     return render(request, "embed.html", dict(script=script))
 
 
 def shapes(request: HttpRequest) -> HttpResponse:
-    script = server_document(request.build_absolute_uri())
+    script = server_document(request.get_full_path())
+    return render(request, "embed.html", dict(script=script))
+
+
+def shapes_with_args(request: HttpRequest, arg1: str, arg2: str) -> HttpResponse:
+    script = server_document(request.get_full_path())
     return render(request, "embed.html", dict(script=script))
