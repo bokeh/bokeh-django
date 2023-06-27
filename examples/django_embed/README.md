@@ -1,7 +1,7 @@
-Install django, panel and channels (pip only) and run:
+Install panel and pandas and run:
 
 ```sh
-./manage.py runserver 0.0.0.0:8000
+python manage.py runserver
 ```
 
-then navigate to <http://127.0.0.1:8000/shape_viewer>, <http://127.0.0.1:8000/sea_surface>, or <http://127.0.0.1:8000/sea_surface_with_template>.
+then navigate to <http://127.0.0.1:8000>.

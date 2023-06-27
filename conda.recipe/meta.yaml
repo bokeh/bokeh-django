@@ -1,8 +1,9 @@
-{% set sdata = load_setup_py_data() %}
+{% set pyproject = load_file_data('../pyproject.toml', from_recipe_dir=True) %}
+{% set project_data = pyproject.get('project') %}
 
 package:
   name: bokeh-django
-  version: {{ sdata['version'] }}
+  version: {{ project_data['version'] }}
 
 source:
   path: ..
@@ -10,18 +11,18 @@ source:
 build:
   noarch: python
   number: 0
-  script: python setup.py install --single-version-externally-managed --record=record.txt
+  script: pip install .
 
 
 requirements:
   build:
-    - python=3.7*
+    - python
     - setuptools
   run:
     - python
 
     # dependencies are defined in setup.py
-    {% for dep in sdata['install_requires'] %}
+    {% for dep in project_data['dependencies'] %}
     - {{ dep.lower() }}
     {% endfor %}
 
@@ -32,6 +33,6 @@ test:
     - bokeh_django.consumers
 
 about:
-  home: {{ sdata['url'] }}
-  summary: {{ sdata['description'] }}
-  license: {{ sdata['license'] }}
+  home: {{ project_data['urls']['Homepage'] }}
+  summary: {{ project_data['description'] }}
+  license: BSD-3-Clause

@@ -1,17 +1,10 @@
-"""
-ASGI config for django_embed project.
+from channels.auth import AuthMiddlewareStack
+from channels.routing import ProtocolTypeRouter, URLRouter
+from django.apps import apps
 
-It exposes the ASGI callable as a module-level variable named ``application``.
+bokeh_app_config = apps.get_app_config('bokeh_django')
 
-For more information on this file, see
-https://channels.readthedocs.io/en/latest/deploying.html
-"""
-
-import os
-
-import django
-from channels.routing import get_default_application
-
-os.environ.setdefault('DJANGO_SETTINGS_MODULE', 'django_embed.settings')
-django.setup()
-application = get_default_application()
+application = ProtocolTypeRouter({
+    'websocket': AuthMiddlewareStack(URLRouter(bokeh_app_config.routes.get_websocket_urlpatterns())),
+    'http': AuthMiddlewareStack(URLRouter(bokeh_app_config.routes.get_http_urlpatterns())),
+})
