@@ -18,6 +18,10 @@ from .shape_viewer import shape_viewer
 theme = Theme(filename=join(settings.THEMES_DIR, "theme.yaml"))
 
 
+def index(request: HttpRequest) -> HttpResponse:
+    return render(request, 'index.html', {})
+
+
 def shape_viewer_handler(doc: Document) -> None:
     panel = shape_viewer()
     panel.server_doc(doc)
@@ -77,7 +81,7 @@ def sea_surface(request: HttpRequest) -> HttpResponse:
 
 
 def sea_surface_custom_uri(request: HttpRequest) -> HttpResponse:
-    script = server_document(request._current_scheme_host + "/sea_surface")
+    script = server_document(request._current_scheme_host + "/sea_surface_custom_uri")
     return render(request, "embed.html", dict(script=script))
 
 

@@ -56,6 +56,7 @@ ApplicationLike = Union[Application, Callable, Path]
 # General API
 # -----------------------------------------------------------------------------
 
+
 class DjangoApplicationContext(ApplicationContext):
     async def create_session_if_needed(self, session_id: ID, request: HTTPServerRequest | None = None,
             token: str | None = None) -> ServerSession:
@@ -135,6 +136,10 @@ class Routing:
         self.document = document
         self.autoload = autoload
 
+    def __repr__(self):
+        doc = 'document' if self.document else ''
+        return f'<{self.__module__}.{self.__class__.__name__} url="{self.url}" {doc}>'
+
     def _normalize(self, obj: ApplicationLike) -> Application:
         if callable(obj):
             return Application(FunctionHandler(obj, trap_exceptions=True))
@@ -162,11 +167,12 @@ def directory(*apps_paths: Path) -> List[Routing]:
 
     for apps_path in apps_paths:
         if apps_path.exists():
-            paths += [ entry for entry in apps_path.glob("*") if is_bokeh_app(entry) ]
+            paths += [entry for entry in apps_path.glob("*") if is_bokeh_app(entry)]
         else:
-            log.warn(f"bokeh applications directory '{apps_path}' doesn't exist")
+            log.warning(f"bokeh applications directory '{apps_path}' doesn't exist")
 
-    return [ document(url, app) for url, app in build_single_handler_applications(paths).items() ]
+    paths = [str(p) for p in paths]
+    return [document(url, app) for url, app in build_single_handler_applications(paths).items()]
 
 
 class RoutingConfiguration:
@@ -187,7 +193,7 @@ class RoutingConfiguration:
         kwargs = dict(app_context=routing.app_context)
 
         def join(*components):
-            return "/".join([ component.strip("/") for component in components if component ])
+            return "/".join([component.strip("/") for component in components if component])
 
         def urlpattern(suffix=""):
             return r"^{}$".format(join(re.escape(routing.url)) + suffix)
