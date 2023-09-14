@@ -22,7 +22,7 @@ keywords = ["Bokeh", "Django", "Channels", "web", "visualization"]
 dependencies = [
     "bokeh",
     "django",
-    "channels<4",
+    "channels",
 ]
 requires-python = ">=3.7"
 
