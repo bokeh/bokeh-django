@@ -7,7 +7,8 @@ Both Bokeh and Django are web frameworks that can be used independently to build
 ## Installation
 
 ```commandline
-pip install bokeh-django
+~~pip install bokeh-django~~
+pip install bokeh-django@git+https://github.com/yezhenqing/bokeh-django
 ```
 
 ## Configuration
