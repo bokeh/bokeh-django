@@ -1,6 +1,8 @@
 # bokeh-django
 Support for running Bokeh apps with Django
 
+The purpose of this fork is to facilitate the transition to the channels4 (Daphne) version, while incorporating minor customizations. It functions as a temporary personal solution, with full credit attributed to the original source.
+
 ## Introduction
 Both Bokeh and Django are web frameworks that can be used independently to build and host web applications. They each have their own strengths and the purpose of the ``bokeh_django`` package is to integrate these two frameworks so their strengths can be used together. 
 
@@ -24,6 +26,7 @@ This documentation assumes that you have already started a [Django project](http
     ```python
     INSTALLED_APPS = [
         ...,
+        'daphne',
         'channels',
         'bokeh_django',
     ]
