@@ -24,6 +24,7 @@ from typing import List
 # External imports
 from django.apps import AppConfig
 from django.conf import settings
+from django.urls import URLPattern, URLResolver
 
 # Bokeh imports
 from .routing import Routing, RoutingConfiguration
