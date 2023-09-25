@@ -48,6 +48,7 @@ class DjangoBokehConfig(AppConfig):
 
     _routes: RoutingConfiguration | None = None
 
+    '''
     @property
     def bokeh_apps(self) -> List[Routing]:
         """
@@ -57,6 +58,24 @@ class DjangoBokehConfig(AppConfig):
         module = settings.ROOT_URLCONF
         url_conf = import_module(module) if isinstance(module, str) else module
         return url_conf.bokeh_apps
+    '''
+
+    @property
+    def bokeh_apps(self) -> List[Routing]:
+        """
+        https://www.fusionbox.com/blog/detail/making-a-django-url-resolver-field-a-case-study/628/
+        Think about how to improve this part ???
+        """
+        bokeh_apps = [ ]
+        module = settings.ROOT_URLCONF
+        url_conf = import_module(module) if isinstance(module, str) else module
+        if hasattr(url_conf, 'bokeh_apps'):
+            bokeh_apps.extend(url_conf.bokeh_apps)
+        for p in url_conf.urlpatterns:
+            if isinstance(p, (URLResolver)):
+                if hasattr(p, 'bokeh_apps'):
+                    bokeh_apps.extend(p.bokeh_apps)
+        return bokeh_apps
 
     @property
     def routes(self) -> RoutingConfiguration:
