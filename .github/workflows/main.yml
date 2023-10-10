@@ -1,9 +1,9 @@
 name: GitHub Clone Count Update Everyday
 
-#on:
+on:
 #  schedule:
 #    - cron: "0 */24 * * *"
-#  workflow_dispatch:
+  workflow_dispatch:
 
 jobs:
   build:
