@@ -79,6 +79,13 @@ class ConsumerHelper(AsyncConsumer):
     def request(self) -> "AttrDict":
         request = AttrDict(self.scope)
         request["arguments"] = self.arguments
+
+        # patch for panel 1.4
+        request['protocol'] = request.get('scheme')
+        for k, v in request.headers:
+            request[k.decode()] = v.decode()
+        request['uri'] = request.get('path')
+
         return request
 
     @property

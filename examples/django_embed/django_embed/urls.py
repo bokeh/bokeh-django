@@ -46,5 +46,5 @@ bokeh_apps = [
     autoload("sea-surface-temp", views.sea_surface_handler),
     autoload("sea_surface_custom_uri", views.sea_surface_handler),
     autoload("shapes", views.shape_viewer_handler),
-    autoload("shapes/(?P<arg1>[\w_\-]+)/(?P<arg2>[\w_\-]+)", views.shape_viewer_handler_with_args),
+    autoload(r"shapes/(?P<arg1>[\w_\-]+)/(?P<arg2>[\w_\-]+)", views.shape_viewer_handler_with_args),
 ]
