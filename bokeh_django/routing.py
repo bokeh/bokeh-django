@@ -10,6 +10,7 @@
 # -----------------------------------------------------------------------------
 from __future__ import annotations
 
+import inspect
 import logging  # isort:skip
 log = logging.getLogger(__name__)
 
@@ -19,7 +20,7 @@ log = logging.getLogger(__name__)
 
 # Standard library imports
 from pathlib import Path
-from typing import Callable, List, Union
+from typing import Callable, List, Union, TYPE_CHECKING
 import weakref
 
 # External imports
@@ -31,15 +32,28 @@ from tornado import gen
 
 # Bokeh imports
 from bokeh.application import Application
+from bokeh.settings import settings as bokeh_settings
 from bokeh.application.handlers.document_lifecycle import DocumentLifecycleHandler
-from bokeh.application.handlers.function import FunctionHandler
+from bokeh.application.handlers.function import FunctionHandler, handle_exception
 from bokeh.command.util import build_single_handler_application, build_single_handler_applications
-from bokeh.server.contexts import ApplicationContext, BokehSessionContext, _RequestProxy, ServerSession
+from bokeh.server.contexts import (
+    ApplicationContext,
+    BokehSessionContext,
+    _RequestProxy,
+    ServerSession,
+    ProtocolError,
+)
 from bokeh.document import Document
 from bokeh.util.token import get_token_payload
 
 # Local imports
 from .consumers import AutoloadJsConsumer, DocConsumer, WSConsumer
+
+if TYPE_CHECKING:
+    from bokeh.server.contexts import (
+        ID,
+        HTTPServerRequest,
+    )
 
 # -----------------------------------------------------------------------------
 # Globals and constants
@@ -49,7 +63,51 @@ __all__ = (
     'RoutingConfiguration',
 )
 
-ApplicationLike = Union[Application, Callable, Path]
+
+class AsyncApplication(Application):
+    async def create_document(self) -> Document:
+        """ Creates and initializes a document using the Application's handlers.
+
+        """
+        doc = Document()
+        await self.initialize_document(doc)
+        return doc
+
+    async def initialize_document(self, doc: Document) -> None:
+        """ Fills in a new document using the Application's handlers.
+
+        """
+        for h in self._handlers:
+            result = h.modify_document(doc)
+            if inspect.iscoroutine(result):
+                await result
+            if h.failed:
+                log.error("Error running application handler %r: %s %s ", h, h.error, h.error_detail)
+
+        if bokeh_settings.perform_document_validation():
+            doc.validate()
+
+
+class AsyncFunctionHandler(FunctionHandler):
+    async def modify_document(self, doc: Document) -> None:
+        """ Execute the configured ``func`` to modify the document.
+
+        After this method is first executed, ``safe_to_fork`` will return
+        ``False``.
+
+        """
+        try:
+            await self._func(doc)
+        except Exception as e:
+            if self._trap_exceptions:
+                handle_exception(self, e)
+            else:
+                raise
+        finally:
+            self._safe_to_fork = False
+
+
+ApplicationLike = Union[Application, Callable, Path, AsyncApplication]
 
 # -----------------------------------------------------------------------------
 # General API
@@ -97,10 +155,12 @@ class DjangoApplicationContext(ApplicationContext):
             except Exception as e:
                 log.error("Failed to run session creation hooks %r", e, exc_info=True)
 
-            # This needs to be wrapped in the database_sync_to_async wrapper just in case the handler function accesses
-            # Django ORM.
-
-            await database_sync_to_async(self._application.initialize_document)(doc)
+            if isinstance(self._application, AsyncApplication):
+                await self._application.initialize_document(doc)
+            else:
+                # This needs to be wrapped in the database_sync_to_async wrapper just in case the handler function
+                # accesses Django ORM.
+                await database_sync_to_async(self._application.initialize_document)(doc)
 
             session = ServerSession(session_id, doc, io_loop=self._loop, token=token)
             del self._pending_sessions[session_id]
@@ -141,6 +201,8 @@ class Routing:
 
     def _normalize(self, obj: ApplicationLike) -> Application:
         if callable(obj):
+            if inspect.iscoroutinefunction(obj):
+                return AsyncApplication(AsyncFunctionHandler(obj, trap_exceptions=True))
             return Application(FunctionHandler(obj, trap_exceptions=True))
         elif isinstance(obj, Path):
             return build_single_handler_application(obj)
