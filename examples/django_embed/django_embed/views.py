@@ -30,7 +30,7 @@ def shape_viewer_handler(doc: Document) -> None:
 
 
 @with_url_args
-def shape_viewer_handler_with_args(doc, arg1, arg2):
+async def shape_viewer_handler_with_args(doc, arg1, arg2):
     viewer = shape_viewer()
     pn.Column(
         viewer,
@@ -38,7 +38,7 @@ def shape_viewer_handler_with_args(doc, arg1, arg2):
     ).server_doc(doc)
 
 
-def sea_surface_handler(doc: Document) -> None:
+async def sea_surface_handler(doc: Document) -> None:
     df = sea_surface_temperature.copy()
     source = ColumnDataSource(data=df)
 
@@ -61,8 +61,8 @@ def sea_surface_handler(doc: Document) -> None:
 
 
 @with_request
-def sea_surface_handler_with_template(doc: Document, request: Any) -> None:
-    sea_surface_handler(doc)
+async def sea_surface_handler_with_template(doc: Document, request: Any) -> None:
+    await sea_surface_handler(doc)
     doc.template = """
 {% block title %}Embedding a Bokeh Apps In Django{% endblock %}
 {% block preamble %}
@@ -80,7 +80,7 @@ def sea_surface_handler_with_template(doc: Document, request: Any) -> None:
     doc.template_variables["username"] = request.user
 
 
-def sea_surface(request: HttpRequest) -> HttpResponse:
+async def sea_surface(request: HttpRequest) -> HttpResponse:
     script = server_document(request.get_full_path())
     return render(request, "embed.html", dict(script=script))
 
