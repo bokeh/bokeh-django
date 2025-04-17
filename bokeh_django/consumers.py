@@ -223,21 +223,21 @@ class WSConsumer(AsyncWebsocketConsumer, ConsumerHelper):
 
         subprotocols = self.scope["subprotocols"]
         if len(subprotocols) != 2 or subprotocols[0] != 'bokeh':
-            self.close()
+            await self.close()
             raise RuntimeError("Subprotocol header is not 'bokeh'")
 
         token = subprotocols[1]
         if token is None:
-            self.close()
+            await self.close()
             raise RuntimeError("No token received in subprotocol header")
 
         now = calendar.timegm(dt.datetime.now(dt.UTC).utctimetuple())
         payload = get_token_payload(token)
         if 'session_expiry' not in payload:
-            self.close()
+            await self.close()
             raise RuntimeError("Session expiry has not been provided")
         elif now >= payload['session_expiry']:
-            self.close()
+            await self.close()
             raise RuntimeError("Token is expired.")
         elif not check_token_signature(token,
                                        signed=False,
@@ -292,7 +292,7 @@ class WSConsumer(AsyncWebsocketConsumer, ConsumerHelper):
 
         except Exception as e:
             log.error("Could not create new server session, reason: %s", e)
-            self.close()
+            await self.close()
             raise e
 
         msg = self.connection.protocol.create('ACK')
