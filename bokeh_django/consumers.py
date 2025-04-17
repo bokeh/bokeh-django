@@ -265,8 +265,8 @@ class WSConsumer(AsyncWebsocketConsumer, ConsumerHelper):
     async def disconnect(self, close_code):
         self.connection.session.destroy()
 
-    async def receive(self, text_data) -> None:
-        fragment = text_data
+    async def receive(self, text_data=None, bytes_data=None) -> None:
+        fragment = text_data or bytes_data
 
         message = await self.receiver.consume(fragment)
         if message:
