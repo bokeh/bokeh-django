@@ -71,21 +71,34 @@ __all__ = (
 # -----------------------------------------------------------------------------
 
 
+def get_host_from_scope(scope):
+    headers = {k.decode(): v.decode() for k, v in scope.get("headers", [])}
+    if "x-forwarded-host" in headers:
+        return headers["x-forwarded-host"]
+    if "host" in headers:
+        return headers["host"]
+    if scope.get("server"):
+        host, port = scope["server"]
+        return f"{host}:{port}"
+    return "unknown"
+
+
 class ConsumerHelper(AsyncConsumer):
 
     _prefix = "/"
 
     @property
     def request(self) -> "AttrDict":
+        scheme = self.scope.get("scheme", "http")
+        path = self.scope.get("path", "/")
+        raw_qs = self.scope.get("query_string") or b""
+        qs = raw_qs.decode("utf-8", "ignore")
+        uri = f"{path}{('?' + qs) if qs else ''}"
         request = AttrDict(self.scope)
+        request["protocol"] = scheme
+        request["host"] = get_host_from_scope(self.scope)
+        request["uri"] = uri
         request["arguments"] = self.arguments
-
-        # patch for panel 1.4
-        request['protocol'] = request.get('scheme')
-        for k, v in request.headers:
-            request[k.decode()] = v.decode()
-        request['uri'] = request.get('path')
-
         return request
 
     @property
@@ -206,6 +219,7 @@ class WSConsumer(AsyncWebsocketConsumer, ConsumerHelper):
         super().__init__(*args, **kwargs)
         self._application_context = kwargs.get('app_context')
         self._clients = set()
+        self.connection = None
         self.lock = locks.Lock()
 
     @property
@@ -263,7 +277,8 @@ class WSConsumer(AsyncWebsocketConsumer, ConsumerHelper):
         await self.accept("bokeh")
 
     async def disconnect(self, close_code):
-        self.connection.session.destroy()
+        if self.connection:
+            self.connection.session.destroy()
 
     async def receive(self, text_data) -> None:
         fragment = text_data
