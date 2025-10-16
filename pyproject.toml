@@ -6,7 +6,7 @@ build-backend = "setuptools.build_meta"
 
 [project]
 name = "bokeh-django"
-version = "0.2.0"
+version = "0.2.1"
 description = "Utility to integrate Bokeh with Django Channels"
 readme = "README.md"
 authors = [
